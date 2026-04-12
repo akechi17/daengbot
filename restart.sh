@@ -1,29 +1,56 @@
 #!/bin/bash
-# Restart script for Daeng Bot
+# Restart script for Daeng Bot services
+
+echo "🔄 Daeng Bot Restart Script"
+echo "=========================="
 
 cd /root/daengbot
 
-echo "Pulling latest changes..."
+# Pull latest changes
+echo "📥 Pulling latest changes from git..."
 git pull origin main
 
-echo "Stopping running processes..."
-pkill -f "telegram_daeng_all_in_one_bot_v5.py"
-pkill -f "daeng_callback_server.py"
-pkill -f "daeng_order_watcher.py"
+# Restart all services
+echo "🔄 Restarting systemd services..."
+systemctl restart daengbot.service
+systemctl restart daeng-callback.service
+systemctl restart daeng-order-watcher.service
 
-sleep 2
+# Wait a moment for services to start
+sleep 3
 
-echo "Starting processes..."
-nohup /root/daengbot/venv/bin/python /root/daengbot/telegram_daeng_all_in_one_bot_v5.py > bot.log 2>&1 &
-nohup /root/daengbot/venv/bin/python /root/daengbot/daeng_callback_server.py > callback.log 2>&1 &
-nohup /root/daengbot/venv/bin/python /root/daengbot/daeng_order_watcher.py > watcher.log 2>&1 &
+# Check status
+echo ""
+echo "📊 Service Status:"
+echo "=================="
 
-sleep 2
+# Main bot status
+echo "🤖 Main Bot:"
+systemctl is-active daengbot.service && echo "✅ Running" || echo "❌ Failed"
 
-echo "Verifying processes..."
-ps aux | grep -E "telegram_daeng|daeng_callback|daeng_order_watcher" | grep -v grep
+# Callback server status
+echo "🔔 Callback Server:"
+systemctl is-active daeng-callback.service && echo "✅ Running" || echo "❌ Failed"
 
-echo "Done! Check logs if needed:"
-echo "  tail -f bot.log"
-echo "  tail -f callback.log"
-echo "  tail -f watcher.log"
+# Order watcher status
+echo "👀 Order Watcher:"
+systemctl is-active daeng-order-watcher.service && echo "✅ Running" || echo "❌ Failed"
+
+echo ""
+echo "📋 Detailed Status:"
+echo "=================="
+systemctl status daengbot.service --no-pager -l
+echo ""
+echo "---"
+systemctl status daeng-callback.service --no-pager -l
+echo ""
+echo "---"
+systemctl status daeng-order-watcher.service --no-pager -l
+
+echo ""
+echo "🎉 Restart complete!"
+echo ""
+echo "📝 To view logs:"
+echo "  journalctl -u daengbot.service -f"
+echo "  journalctl -u daeng-callback.service -f"
+echo "  journalctl -u daeng-order-watcher.service -f"
