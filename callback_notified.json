@@ -1,0 +1,14 @@
+{
+  "test-anti-double-001::success": true,
+  "test-full-001::success": true,
+  "test-rapih-001::success": true,
+  "final-test-001::success": true,
+  "API0D5375931F8BA89D5CC3::success": true,
+  "API-TEST-BARU-001::success": true,
+  "API1DCB6D75A60BBB10155F::success": true,
+  "API8D3E0864424C2A45843E::success": true,
+  "API3D127DECFA8D0CB837A2::success": true,
+  "TEST-SUKSES-001::success": true,
+  "TEST-GAGAL-001::canceled": true,
+  "API271A3B35F53A160F9A8F::success": true
+}
