@@ -839,6 +839,7 @@ def save_pending_order(invoice: str, draft: Draft) -> None:
         "product": draft.product_name or "",
         "game": draft.game or "",
         "target": target,
+        "callback_url": draft.callback_url or "",
         "created_at": datetime.utcnow().isoformat(),
         "last_status": "pending",
     }
