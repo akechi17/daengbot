@@ -1303,7 +1303,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             )
             invoice = result.get("invoice", "-")
             message = result.get("message", "-")
-            text = f"✅ ORDER TESTING BERHASIL DIKIRIM\n━━━━━━━━━━━━━━\nInvoice : {invoice}\nPesan   : {message}"
+            text = f"✅ ORDER BERHASIL DIKIRIM\n━━━━━━━━━━━━━━\nInvoice : {invoice}\nPesan   : {message}"
             save_pending_order(invoice, draft)
             reset_draft(context)
             await query.edit_message_text(text[:4000], reply_markup=menu_main())
