@@ -123,17 +123,17 @@ def get_poll_interval_seconds(row: dict) -> int:
     is_callback_order = has_callback_enabled(row)
 
     if is_callback_order:
-        # Callback orders: poll infrequently as fallback
-        # Only start polling after 5 minutes (give callback time to work)
-        if age < 5 * 60:
-            return -1  # Don't poll yet, wait for callback
+        # Callback orders: poll frequently as fallback due to Daeng API delays
+        # Start polling immediately since callbacks are often delayed 10-30 minutes
+        if age < 10 * 60:
+            return 60  # Every 1 minute (first 10 min)
         if age < 30 * 60:
-            return 300  # Every 5 minutes (30 min age)
+            return 120  # Every 2 minutes (10-30 min age)
         if age < 2 * 60 * 60:
-            return 600  # Every 10 minutes (2 hour age)
+            return 300  # Every 5 minutes (30 min - 2 hour age)
         if age < 6 * 60 * 60:
-            return 900  # Every 15 minutes (6 hour age)
-        return 1800  # Every 30 minutes after 6 hours
+            return 600  # Every 10 minutes (2-6 hour age)
+        return 900  # Every 15 minutes after 6 hours
     else:
         # Manual orders: poll normally
         if age < 15 * 60:

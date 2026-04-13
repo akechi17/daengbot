@@ -477,7 +477,14 @@ def api_headers() -> dict[str, str]:
 
 def api_post(path: str, form_data: dict[str, str] | None = None) -> Any:
     url = f"{API_BASE_URL}{path}"
-    response = requests.post(url, data=form_data or {}, headers=api_headers(), timeout=45)
+    headers = api_headers()
+    headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+    # Log callback URL for debugging
+    if form_data and "callback_url" in form_data:
+        logger.info(f"Sending order with callback_url: {form_data.get('callback_url')}")
+
+    response = requests.post(url, data=form_data or {}, headers=headers, timeout=45)
     response.raise_for_status()
     try:
         return response.json()
@@ -843,6 +850,9 @@ def save_pending_order(invoice: str, draft: Draft) -> None:
         "created_at": datetime.utcnow().isoformat(),
         "last_status": "pending",
     }
+
+    # Log what's being saved
+    logger.info(f"Saving pending order {invoice} with callback_url: {draft.callback_url}")
 
     data = []
     try:
@@ -1442,11 +1452,91 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.effective_message.reply_text("Pilih menu di bawah.", reply_markup=menu_main())
 
 
+async def track_invoice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Track a website order invoice for automatic monitoring."""
+    user = update.effective_user
+    if not user or not is_allowed(user.id):
+        await update.effective_message.reply_text("Akses ditolak.")
+        return
+
+    if not context.args or len(context.args) == 0:
+        await update.effective_message.reply_text(
+            "Format: /track <invoice>\nContoh: /track INV-12345\n\n"
+            "Command ini untuk tracking order dari website daengdiamondstore.com",
+            reply_markup=menu_main()
+        )
+        return
+
+    invoice = context.args[0].strip()
+
+    # First, check if the invoice exists
+    try:
+        result = api_post(CHECK_ENDPOINT, {"invoice": invoice})
+        if not isinstance(result, dict) or not result.get("invoice"):
+            await update.effective_message.reply_text(
+                f"Invoice tidak ditemukan: {invoice}",
+                reply_markup=menu_main()
+            )
+            return
+    except Exception as e:
+        await update.effective_message.reply_text(
+            f"Gagal cek invoice: {e}",
+            reply_markup=menu_main()
+        )
+        return
+
+    # Add to pending orders
+    try:
+        row = {
+            "invoice": invoice,
+            "product": result.get("product", "Website Order"),
+            "game": "",
+            "target": "Website Order",
+            "callback_url": "",  # No callback for website orders
+            "created_at": datetime.utcnow().isoformat(),
+            "last_status": result.get("order_status", "pending"),
+        }
+
+        data = []
+        if os.path.exists(PENDING_ORDERS_FILE):
+            with open(PENDING_ORDERS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+        # Check if already exists
+        exists = any(str(item.get("invoice", "")) == invoice for item in data)
+        if exists:
+            await update.effective_message.reply_text(
+                f"Invoice {invoice} sudah ditracking.",
+                reply_markup=menu_main()
+            )
+            return
+
+        data.append(row)
+
+        with open(PENDING_ORDERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        await update.effective_message.reply_text(
+            f"✅ Invoice {invoice} berhasil ditambahkan ke monitoring.\n"
+            f"Produk: {result.get('product', '-')}\n"
+            f"Status: {result.get('order_status', '-')}\n\n"
+            f"Bot akan mengirim notifikasi saat status berubah.",
+            reply_markup=menu_main()
+        )
+
+    except Exception as e:
+        await update.effective_message.reply_text(
+            f"Gagal menambahkan invoice: {e}",
+            reply_markup=menu_main()
+        )
+
+
 def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN belum diisi di file .env")
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("track", track_invoice))
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
     logger.info("Bot berjalan...")
